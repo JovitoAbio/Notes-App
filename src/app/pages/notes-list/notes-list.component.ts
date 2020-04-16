@@ -1,5 +1,5 @@
 import { Note } from './../../../shared/note.model';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { NotesService } from 'src/app/shared/notes.service';
 import { trigger, transition, style, animate, query, stagger } from '@angular/animations';
 
@@ -82,16 +82,98 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
 
 export class NotesListComponent implements OnInit {
   notes: Note[] = new Array<Note>();
+  filterdNotes: Note[] = new Array<Note>();
+  @ViewChild('filterInput') filterInputElRef: ElementRef<HTMLInputElement>;
 
   constructor(private notesService: NotesService) { }
 
   ngOnInit() {
     // Retrieve all notes fron notes service
     this.notes = this.notesService.getAll();
+    this.filter('');
   }
 
-  deleteNote(id: number) {
-    this.notesService.delete(id);
+  deleteNote(note: Note) {
+    let noteId = this.notesService.getID(note)
+    this.notesService.delete(noteId);
+    this.filter(this.filterInputElRef.nativeElement.value)
+  }
+
+  generateNoteUrl(note: Note) {
+    let noteId = this.notesService.getID;
+    return noteId;
+  }
+
+  filter(query: string) {
+    query.toLocaleLowerCase().trim();
+
+    let allResults: Note[] = new Array<Note>();
+
+    // Split up the search query into individual words
+    let terms: string[] = query.split(' '); // Split on spaces
+    // Remove duplicate search terms
+    terms = this.removeDuplicates(terms);
+    // Compile all relevant results into allResults array
+    terms.forEach(term => {
+      let results: Note[] = this.findRelevantNotes(term);
+      // Append results into allResults
+      allResults = [...allResults, ...results];
+    });
+
+    // All results will include duplicate notes
+    // Because a particular note can be a result of many search terms
+    // Therefore we must remove duplicate notes first
+    this.filterdNotes = this.removeDuplicates(allResults);
+
+    // Now finally sort by relevancy
+    this.sortByRelevancy(allResults)
+  }
+
+  removeDuplicates(arr: Array<any>) : Array<any> {
+    let uniqueResults: Set<any> = new Set<any>();
+    // Loop through the input arry and add each item to the set
+    arr.forEach(e => uniqueResults.add(e));
+    // Return the unique results array
+    return Array.from(uniqueResults);
+  }
+
+  findRelevantNotes(query: string) : Array<Note> {
+    query.toLowerCase().trim();
+
+    let relevantNotes =this.notes.filter(note => {
+      if(note.title && note.title.toLowerCase().includes(query))
+        return true;
+      if(note.body && note.body.toLowerCase().includes(query))
+        return true;
+
+      return false;
+    })
+
+    return relevantNotes;
+  }
+
+  sortByRelevancy(searchResults: Note[]) {
+    // Calculate the relevancy of based on the number of matched terms in the search search results
+    let noteCountObj: Object = {}
+
+    searchResults.forEach(note => {
+      let noteId = this.notesService.getID(note);
+
+      if(noteCountObj[noteId])
+        noteCountObj[noteId] += 1;
+      else
+        noteCountObj[noteId] = 1;
+    });
+
+    this.filterdNotes = this.filterdNotes.sort((a: Note, b: Note) => {
+      let aId = this.notesService.getID(a);
+      let bId = this.notesService.getID(b);
+
+      let aCount = noteCountObj[aId];
+      let bCount = noteCountObj[bId];
+
+      return bCount - aCount;
+    })
   }
 
 }

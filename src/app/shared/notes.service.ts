@@ -18,7 +18,7 @@ export class NotesService {
   }
 
   getID(note: Note) {
-    this.notes.indexOf(note);
+    return this.notes.indexOf(note);
   }
 
   add(note: Note) {
